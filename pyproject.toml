@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "a-market-mcp"
+version = "0.1.0"
+description = "A stock market data MCP server using Tencent and Sina APIs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.1.2",
+    "requests",
+]
+
+[project.scripts]
+a-market-mcp = "server:mcp.run"
