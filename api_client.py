@@ -40,6 +40,58 @@ def get_tencent_kline(symbol: str, period: str = "day", count: int = 260, adjust
     except Exception as e:
         return {"error": str(e)}
 
+
+def get_tencent_minute_kline(symbol: str, period: int = 5, count: int = 320) -> dict:
+    """
+    Fetch minute-level K-line data from Tencent's mkline endpoint.
+    
+    Args:
+        symbol: Stock code (e.g. sz002463, sh600519)
+        period: Minute interval (1, 5, 15, 30, 60)
+        count: Number of k-lines to fetch (max 320)
+    """
+    url = f"http://ifzq.gtimg.cn/appstock/app/kline/mkline?param={symbol},m{period},,{count}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        r.raise_for_status()
+        
+        # Response format: var m5_today={...}
+        text = r.text
+        if '=' in text:
+            text = text.split('=', maxsplit=1)[-1]
+        
+        data = json.loads(text)
+        
+        stock_data = data.get("data", {}).get(symbol)
+        if not stock_data:
+            return {"error": f"No data found for symbol {symbol}"}
+        
+        key = f"m{period}"
+        klines = stock_data.get(key, [])
+        
+        # Format: [datetime_str, open, close, high, low, volume]
+        # datetime_str format: YYYYMMDDHHmm (e.g. 202206101030)
+        cleaned = []
+        for row in klines:
+            if len(row) >= 6:
+                dt_str = row[0]
+                # Convert to readable format: YYYY-MM-DD HH:MM
+                if len(dt_str) >= 12:
+                    formatted_dt = f"{dt_str[0:4]}-{dt_str[4:6]}-{dt_str[6:8]} {dt_str[8:10]}:{dt_str[10:12]}"
+                    cleaned.append([formatted_dt, row[1], row[2], row[3], row[4], row[5]])
+                else:
+                    cleaned.append(row[:6])
+        
+        return {
+            "symbol": symbol,
+            "period": f"m{period}",
+            "klines": cleaned
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def get_tencent_quote(symbols: list) -> dict:
     symbols_str = ",".join(symbols)
     url = f"http://qt.gtimg.cn/q={symbols_str}"
@@ -54,7 +106,7 @@ def get_tencent_quote(symbols: list) -> dict:
         for line in lines:
             if not line:
                 continue
-            # Example: v_sz002463="51~沪电股份~002463~96.55...
+            # Example: v_sz002463="51~\u6caa\u7535\u80a1\u4efd~002463~96.55...
             parts = line.split('=')
             if len(parts) != 2:
                 continue
@@ -81,6 +133,7 @@ def get_tencent_quote(symbols: list) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
+
 def search_sina_stock(keyword: str) -> dict:
     url = f"http://suggest3.sinajs.cn/suggest/type=&key={keyword}"
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -89,7 +142,7 @@ def search_sina_stock(keyword: str) -> dict:
         r.raise_for_status()
         r.encoding = 'gbk'
         
-        # Example: var suggestvalue="002463,sz002463,沪电股份...";
+        # Example: var suggestvalue="002463,sz002463,\u6caa\u7535\u80a1\u4efd...";
         text = r.text.strip()
         prefix = 'var suggestvalue="'
         if text.startswith(prefix):
@@ -102,7 +155,7 @@ def search_sina_stock(keyword: str) -> dict:
                     fields = item.split(',')
                     if len(fields) >= 4:
                         # Sina suggest format: name, type, code, symbol, name2, ...
-                        # e.g., 沪电股份,11,002463,sz002463,沪电股份
+                        # e.g., \u6caa\u7535\u80a1\u4efd,11,002463,sz002463,\u6caa\u7535\u80a1\u4efd
                         name = fields[0]
                         symbol = fields[3]
                         results.append({"name": name, "symbol": symbol})
