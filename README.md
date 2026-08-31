@@ -23,18 +23,6 @@ pip install mcp requests
 }
 ```
 
-例如：
-
-```json
-{
-  "mcpServers": {
-    "a-market-mcp": {
-      "command": "python",
-      "args": ["c:\\Users\\achuan\\Desktop\\fusun\\stock-market\\a-market-mcp\\server.py"]
-    }
-  }
-}
-```
 
 ## 工具列表
 
